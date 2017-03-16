@@ -93,8 +93,9 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 	register const char *p;
 	register int ch, err;
 	unsigned long long num;
-	int base, lflag, width, precision, altflag;
+	int base, lflag, width, precision, altflag, sign;
 	char padc;
+	count = 0;
 
 	while (1) {
 		while ((ch = *(unsigned char *) fmt++) != '%') {
@@ -109,9 +110,13 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		precision = -1;
 		lflag = 0;
 		altflag = 0;
+		sign = 0;
 	reswitch:
 		switch (ch = *(unsigned char *) fmt++) {
 
+		case '+':
+			sign = 1;
+			goto reswitch;
 		// flag to pad on the right
 		case '-':
 			padc = '-';
@@ -198,8 +203,14 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (signed) decimal
 		case 'd':
 			num = getint(&ap, lflag);
+			if ((sign) && ((long long) num > 0)) {
+				putch('+', putdat);
+				count++;
+				sign = 0;
+			}
 			if ((long long) num < 0) {
 				putch('-', putdat);
+				count++;
 				num = -(long long) num;
 			}
 			base = 10;
