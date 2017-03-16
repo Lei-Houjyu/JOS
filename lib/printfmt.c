@@ -49,12 +49,15 @@ printnum(void (*putch)(int, void*), void *putdat,
 		printnum(putch, putdat, num / base, base, width - 1, padc);
 	} else {
 		// print any needed pad characters before first digit
-		while (--width > 0)
+		while (--width > 0) {
 			putch(padc, putdat);
+			count++;
+		}
 	}
 
 	// then print this (the least significant) digit
 	putch("0123456789abcdef"[num % base], putdat);
+	count++;
 }
 
 // Get an unsigned int of various possible sizes from a varargs list,
@@ -102,6 +105,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			if (ch == '\0')
 				return;
 			putch(ch, putdat);
+			count++;
 		}
 
 		// Process a %-escape sequence
@@ -171,6 +175,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// character
 		case 'c':
 			putch(va_arg(ap, int), putdat);
+			count++;
 			break;
 
 		// error message
@@ -191,13 +196,20 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			if (width > 0 && padc != '-')
 				for (width -= strnlen(p, precision); width > 0; width--)
 					putch(padc, putdat);
+					count++;
 			for (; (ch = *p++) != '\0' && (precision < 0 || --precision >= 0); width--)
-				if (altflag && (ch < ' ' || ch > '~'))
+				if (altflag && (ch < ' ' || ch > '~')) {
 					putch('?', putdat);
-				else
+					count++;
+				}
+				else {
 					putch(ch, putdat);
-			for (; width > 0; width--)
+					count++;
+				}
+			for (; width > 0; width--) {
 				putch(' ', putdat);
+				count++;
+			}
 			break;
 
 		// (signed) decimal
@@ -236,6 +248,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		case 'p':
 			putch('0', putdat);
 			putch('x', putdat);
+			count += 2;
 			num = (unsigned long long)
 				(uintptr_t) va_arg(ap, void *);
 			base = 16;
@@ -270,18 +283,38 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
             const char *overflow_error = "\nwarning! The value %n argument pointed to has been overflowed!\n";
 
             // Your code here
-
-            break;
+            char *p = (char *)va_arg(ap, int);
+            if (p == NULL) {
+            	int i = 0;
+            	while (null_error[i] != '\0') {
+            		putch(null_error[i], putdat);
+            		i++;
+            	}
+            	break;
+            }
+            if (count > 240) {
+            	int i = 0;
+            	while (overflow_error[i] != '\0') {
+            		putch(overflow_error[i], putdat);
+            		i++;
+            	}
+            	*p = -1;
+            	break;
+            }
+            *p = count;
+             break;
         }
 
 		// escaped '%' character
 		case '%':
 			putch(ch, putdat);
+			count++;
 			break;
 			
 		// unrecognized escape sequence - just print it literally
 		default:
 			putch('%', putdat);
+			count++;
 			for (fmt--; fmt[-1] != '%'; fmt--)
 				/* do nothing */;
 			break;
