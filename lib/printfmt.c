@@ -42,13 +42,26 @@ printnum(void (*putch)(int, void*), void *putdat,
 	// space on the right side if neccesary.
 	// you can add helper function if needed.
 	// your code here:
-
+	int flag = 0, length = 0;
+	if ((char) padc == '-') {
+		length = width;
+		width = -1;
+		flag = 1;
+		padc = ' ';	
+		int tmp = num;
+		while (tmp/base > 0) {
+			tmp /= base;
+			length--;
+		}
+	}
 
 	// first recursively print all preceding (more significant) digits
 	if (num >= base) {
 		printnum(putch, putdat, num / base, base, width - 1, padc);
 	} else {
 		// print any needed pad characters before first digit
+		while (--width > 0)
+			putch(padc, putdat);
 		while (--width > 0) {
 			putch(padc, putdat);
 			count++;
@@ -58,6 +71,11 @@ printnum(void (*putch)(int, void*), void *putdat,
 	// then print this (the least significant) digit
 	putch("0123456789abcdef"[num % base], putdat);
 	count++;
+	if (flag) 
+		while (--length > 0) {
+			putch(padc, putdat);
+			count++;
+		}
 }
 
 // Get an unsigned int of various possible sizes from a varargs list,

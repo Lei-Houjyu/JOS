@@ -30,14 +30,14 @@ run () {
 	#echo "brkaddr $brkaddr"
 
 	# Generate a unique GDB port
-	port=$(expr `id -u` % 5000 + 25000)
+	port=1234 #$(expr `id -u` % 5000 + 25000)
 
 	# Run qemu, setting a breakpoint at readline(),
 	# and feeding in appropriate commands to run, then quit.
 	t0=`date +%s.%N 2>/dev/null`
 	(
 		ulimit -t $timeout
-		$qemu -nographic $qemuopts -serial file:jos.out -monitor null -s -S -p $port
+		$qemu -nographic $qemuopts -serial file:jos.out -monitor null -s -S # -p $port
 	) >$out 2>$err &
 
 	(
