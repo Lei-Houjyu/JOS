@@ -102,8 +102,13 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
+	int page_num = (n + PGSIZE - 1) / PGSIZE;
+	if (page_num > npages) panic("boot_alloc: Out of memory\n");
 
-	return NULL;
+	result = nextfree;
+	nextfree += PGSIZE * page_num;
+
+	return result;
 }
 
 // Set up a two-level page table:
@@ -119,13 +124,9 @@ void
 mem_init(void)
 {
 	uint32_t cr0;
-	size_t n;
 
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
-
-	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -147,6 +148,7 @@ mem_init(void)
 	// each physical page, there is a corresponding struct Page in this
 	// array.  'npages' is the number of physical pages in memory.
 	// Your code goes here:
+	pages = (struct Page *)boot_alloc(sizeof(struct Page) * npages);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -170,6 +172,8 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	uint32_t n = ROUNDUP(npages*sizeof(struct Page), PGSIZE);
+	boot_map_region(kern_pgdir, UPAGES, n, PADDR(pages), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -182,6 +186,8 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P);
+
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -191,6 +197,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -215,6 +222,19 @@ mem_init(void)
 
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
+}
+
+void
+reverse() {
+	struct Page *head = NULL;
+	struct Page *tmp = page_free_list;
+	while (tmp) {
+		page_free_list = page_free_list->pp_link;
+		tmp->pp_link = head;
+		head = tmp;
+		tmp = page_free_list;
+	}
+	page_free_list = head;
 }
 
 // --------------------------------------------------------------
@@ -250,12 +270,19 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
+	physaddr_t used = PADDR(boot_alloc(0));
 	for (i = 0; i < npages; i++) {
+		physaddr_t pa = page2pa(&pages[i]);
 		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+		pages[i].pp_link = NULL;
+		if ((i == 0) || (pa >= IOPHYSMEM && pa < used)) {
+			pages[i].pp_ref = 1;
+		} else {
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		}
 	}
-	chunk_list = NULL;
+	reverse();
 }
 
 //
@@ -271,6 +298,13 @@ struct Page *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
+	if (!page_free_list) 
+		return NULL;
+	struct Page *result = page_free_list;
+	page_free_list = page_free_list->pp_link;
+	if (alloc_flags & ALLOC_ZERO) 
+		memset(page2kva(result), '\0', PGSIZE);
+	return result;
 }
 
 //
@@ -281,6 +315,9 @@ void
 page_free(struct Page *pp)
 {
 	// Fill this function in
+	pp->pp_link = page_free_list;
+	page_free_list = pp;
+
 }
 
 //
@@ -320,7 +357,19 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	physaddr_t pt = PTE_ADDR(pgdir[PDX(va)]);
+	pte_t *result;
+	if (!pt) {
+		if (!create) return NULL;
+		struct Page *pt = page_alloc(ALLOC_ZERO);
+		if (!pt) return NULL;
+		pt->pp_ref++;
+		pgdir[PDX(va)] = page2pa(pt) | PTE_U | PTE_P | PTE_W;
+		result = (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])) + PTX(va);
+	} else {
+		result = (pte_t *)KADDR(pt) + PTX(va);
+	}
+	return result;
 }
 
 //

@@ -33,6 +33,7 @@ echo_n () {
 # non-empty, wait until $brkfn is reached or $timeout expires, then
 # kill QEMU.
 run () {
+
 	qemuextra=
 	if [ "$brkfn" ]; then
 		qemuextra="-S $qemugdb"
