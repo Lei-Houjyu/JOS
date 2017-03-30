@@ -197,7 +197,11 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
+	// boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
+	// Enable PSE(5th bit in cr4, which is 16), then Load CR-4
+	uint32_t cr4 = rcr4();
+	lcr4(cr4 | 16);
+	boot_map_region_large(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -411,13 +415,10 @@ boot_map_region_large(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, in
 {
 	// Fill this function in
 	size_t i;
-	for (i=0; i<size; i+=PGSIZE) {
+	for (i=0; i<size; i+=PTSIZE) {
 		uintptr_t now = (uintptr_t)(va + i);
-		pte_t *pte = pgdir_walk(pgdir, (void *)now, 1);
-		if (!pte) panic("Can't alloc page table!\n");
-		*pte = (pa + i) | perm | PTE_P;
-		pgdir[PDX(now)] |= perm | PTE_P;
-	}
+		pgdir[PDX(now)] = (pa + i) | perm | PTE_P | PTE_PS;
+	}	
 }
 
 //
