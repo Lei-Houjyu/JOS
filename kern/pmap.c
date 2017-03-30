@@ -312,6 +312,34 @@ page_alloc(int alloc_flags)
 }
 
 //
+// Challenge! Extend the JOS physical page allocator to support page coloring.
+//
+// Page coloring assigns each page a "color", 
+// so that pages have different color reside in different part of cache. 
+// This technique ensures contiguous virtual pages do not contend for the same cache line.
+struct Page *alloc_page_with_color(int alloc_flags, int color) {
+	// get mask
+	color = (color % 4) << 12;
+
+	struct Page *result;
+	struct Page *pre = NULL;
+	for (result = page_free_list; result; result = result->pp_link) {
+		physaddr_t pa = page2pa(result);
+		if ((pa & color) == color) {
+			// remove the chosen page from page_free_list
+			if (pre) 
+				pre->pp_link = result->pp_link;
+			else
+				page_free_list = result->pp_link;
+			break;
+		}
+		pre = result;
+	}
+
+	return result;	
+}
+
+//
 // Return a page to the free list.
 // (This function should only be called when pp->pp_ref reaches 0.)
 //
