@@ -386,6 +386,14 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	size_t i;
+	for (i=0; i<size; i+=PGSIZE) {
+		uintptr_t now = (uintptr_t)(va + i);
+		pte_t *pte = pgdir_walk(pgdir, (void *)now, 1);
+		if (!pte) panic("Can't alloc page table!\n");
+		*pte = (pa + i) | perm | PTE_P;
+		pgdir[PDX(now)] |= perm | PTE_P;
+	}
 }
 
 //
