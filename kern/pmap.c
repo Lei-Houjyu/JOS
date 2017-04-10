@@ -331,6 +331,92 @@ page_alloc(int alloc_flags)
 }
 
 //
+// Allocates n continuous physical page. If (alloc_flags & ALLOC_ZERO), fills the n pages 
+// returned physical page with '\0' bytes.  Does NOT increment the reference
+// count of the page - the caller must do these if necessary (either explicitly
+// or via page_insert). 
+//
+// In order to figure out the n pages when return it. 
+// These n pages should be organized as a list.
+//
+// Returns NULL if out of free memory.
+// Returns NULL if n <= 0
+//
+// Try to reuse the pages cached in the chuck list
+//
+// Hint: use page2kva and memset
+struct Page *
+page_alloc_npages(int alloc_flags, int n)
+{
+	// Fill this function
+	if (n <= 0) return NULL;
+	struct Page *result = page_free_list;
+	struct Page *iter = page_free_list;
+	struct Page *mid = NULL;
+	int i;
+	for (i = 1; i < n; i++) {
+		struct Page *tmp = iter;
+		iter = iter->pp_link;
+		if (!iter) return NULL;
+		if (page2pa(iter) - page2pa(tmp) != PGSIZE) {
+			result = iter;
+			mid = tmp;
+			i = 0;
+		}
+	}
+	if (!mid) {
+		page_free_list = iter->pp_link;
+		iter->pp_link = NULL;
+	} else {
+		mid->pp_link = iter->pp_link;
+		iter->pp_link = NULL;
+	}
+	if (alloc_flags & ALLOC_ZERO) 
+		memset(page2kva(result), '\0', n * PGSIZE);
+	return result;
+}
+
+// Return the last page of a list of pages
+struct Page *
+last_page(struct Page *pp) {
+	struct Page *iter = pp;
+	while (iter->pp_link) iter = iter->pp_link;
+	return iter;
+}
+
+// Return n continuous pages to chunk list. Do the following things:
+//	1. Check whether the n pages int the list are continue, Return -1 on Error
+//	2. Add the pages to the chunk list
+//	
+//	Return 0 if everything ok
+int
+page_free_npages(struct Page *pp, int n)
+{
+	// Fill this function
+	if (!check_continuous(pp, n)) return -1;
+	struct Page *iter = page_free_list;
+	struct Page *mid = NULL;
+	struct Page *end_page = last_page(pp);
+	while (iter) {
+		if (page2pa(iter) < page2pa(pp)) {
+			mid = iter;
+			iter = iter->pp_link;
+		}
+		else {
+			if (!mid) {
+				end_page->pp_link = page_free_list;
+				page_free_list = pp;
+			} else {
+				mid->pp_link = pp;
+				end_page->pp_link = iter;
+			}
+			break;
+		}
+	}
+	return 0;
+}
+
+//
 // Challenge! Extend the JOS physical page allocator to support page coloring.
 //
 // Page coloring assigns each page a "color", 
@@ -368,7 +454,42 @@ page_free(struct Page *pp)
 	// Fill this function in
 	pp->pp_link = page_free_list;
 	page_free_list = pp;
+}
 
+// Return a page in the free list at pa
+// NULL if not found
+struct PagePair find_free_page(physaddr_t pa) {
+	struct PagePair result;
+	struct Page *iter = page_free_list;
+	struct Page *mid = NULL;
+	while (iter) {
+		if (page2pa(iter) == pa) {
+			result.first = iter;
+			result.second = mid;
+			return result;
+		}
+		mid = iter;
+		iter = iter->pp_link;
+	}
+	result.first = NULL;
+	return result;
+}
+
+// Return a page pointer if such free page list found
+// (continuous and at pa)
+// NULL otherwiseo
+struct Page *
+find_succ_pages(physaddr_t pa, int n) {
+	struct PagePair result = find_free_page(pa);
+	if (!result.first) return NULL;
+	if (!check_continuous(result.first, n)) return NULL;
+	struct Page *end_page = pa2page(page2pa(result.first) + (n - 1) * PGSIZE);
+	if (result.second) 
+		result.second->pp_link = end_page->pp_link;
+	else 
+		page_free_list = end_page->pp_link;
+	end_page->pp_link = NULL;
+	return result.first;
 }
 
 //
@@ -380,7 +501,39 @@ struct Page *
 page_realloc_npages(struct Page *pp, int old_n, int new_n)
 {
 	// Fill this function
-	return NULL;
+	struct Page *result = NULL;
+	if (!pp) {
+		result = page_alloc_npages(0,new_n);
+	} else if (!new_n) {
+		page_free_npages(pp, old_n);
+	}else if (new_n == old_n) {
+		return pp;
+	} else if (new_n < old_n) {
+		result = pp;
+		struct Page *iter = pp;
+		int i;
+		for (i = 1; i<new_n; i++) 
+			iter = iter->pp_link;
+		page_free_npages(iter->pp_link, old_n - new_n);
+		iter->pp_link = NULL;
+	} else {
+		struct Page *end_page = last_page(pp);
+		physaddr_t next_pa = page2pa(end_page) + PGSIZE;
+		struct Page *suc_page = find_succ_pages(next_pa, new_n - old_n);
+		// cprintf("find_succ_pages done\n");
+		if (!suc_page) {
+			// cprintf("can't extend\n");
+			page_free_npages(pp, old_n);
+			result = page_alloc_npages(0, new_n);
+			// if (!result) cprintf("alloc failed\n");
+			memmove(page2kva(result), page2kva(pp), old_n * PGSIZE);
+		} else {
+			// cprintf("extend\n");
+			end_page->pp_link = suc_page;
+			result = pp;
+		} 
+	}
+	return result;
 }
 
 //
@@ -456,6 +609,24 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 		if (!pte) panic("Can't alloc page table!\n");
 		*pte = (pa + i) | perm | PTE_P;
 		pgdir[PDX(now)] |= perm | PTE_P;
+	}
+}
+
+void 
+free_list_remove(struct Page *pp) {
+	if (page_free_list == pp) {
+		page_free_list = pp->pp_link;
+		pp->pp_link = NULL;
+	} else {
+		struct Page *iter = page_free_list;
+		while (iter->pp_link) {
+			if (iter->pp_link == pp) {
+				iter->pp_link = pp->pp_link;
+				pp->pp_link = NULL;
+				return;
+			}
+			iter = iter->pp_link;
+		}
 	}
 }
 
