@@ -11,6 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -27,6 +28,7 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
+#define TFMASK 1 << 8
 
 unsigned read_eip();
 
@@ -54,6 +56,31 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	cprintf("  end    %08x (virt)  %08x (phys)\n", end, end - KERNBASE);
 	cprintf("Kernel executable memory footprint: %dKB\n",
 		(end-entry+1023)/1024);
+	return 0;
+}
+
+int
+mon_c(struct Trapframe *tf) {
+	tf->tf_eflags &= ~TFMASK;
+	env_pop_tf(tf);
+	return 0;
+}
+
+int
+mon_si(struct Trapframe *tf) {
+	struct Eipdebuginfo info;
+	debuginfo_eip(tf->tf_eip, &info);
+	cprintf("tf_eip=%x\n", tf->tf_eip);
+	cprintf("%s:%d: %s+%d\n", 
+	info.eip_file, info.eip_line, info.eip_fn_name, (int)info.eip_fn_addr);
+	tf->tf_eflags |= TFMASK;
+	env_pop_tf(tf);
+	return 0;
+}
+
+int
+mon_x(uint32_t addr) {
+	cprintf("%d\n", *(int *)addr);
 	return 0;
 }
 
@@ -181,6 +208,14 @@ runcmd(char *buf, struct Trapframe *tf)
 	for (i = 0; i < NCOMMANDS; i++) {
 		if (strcmp(argv[0], commands[i].name) == 0)
 			return commands[i].func(argc, argv, tf);
+	}
+	if (tf) {
+		if (strcmp(argv[0], "c") == 0)
+			return mon_c(tf);
+		if (strcmp(argv[0], "si") == 0)
+			return mon_si(tf);
+		if (strcmp(argv[0], "x") == 0) 
+			return mon_x(strtol(argv[1], 0, 16));
 	}
 	cprintf("Unknown command '%s'\n", argv[0]);
 	return 0;
