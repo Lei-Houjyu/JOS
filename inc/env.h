@@ -53,6 +53,7 @@ struct Env {
 	uint32_t env_runs;		// Number of times environment has run
 
 	// LAB3: might need code here for implementation of sbrk
+	uint32_t env_heap;
 
 	// Address space
 	pde_t *env_pgdir;		// Kernel virtual address of page dir
