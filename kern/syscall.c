@@ -21,6 +21,7 @@ sys_cputs(const char *s, size_t len)
 	// Destroy the environment if not.
 
 	// LAB 3: Your code here.
+	user_mem_assert(curenv, (void *)s, len, 0);
 
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
@@ -77,7 +78,18 @@ static int
 sys_sbrk(uint32_t inc)
 {
 	// LAB3: your code sbrk here...
-	return 0;
+	int i,n = ROUNDUP(inc, PGSIZE);
+	for (i = 0; i < n; i += PGSIZE) {
+		struct Page *p = page_alloc(0);
+		if (!p) panic("sys_sbrk : can not alloc pages!\n");
+		int r = page_insert(curenv->env_pgdir, p, 
+							(void *)(curenv->env_heap), 
+							PTE_W | PTE_U);
+		if (r < 0)
+			panic("region_alloc : %e",r);
+		curenv->env_heap += PGSIZE;
+	}
+	return curenv->env_heap;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -87,7 +99,25 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
-
-	panic("syscall not implemented");
+	switch (syscallno) {
+		case SYS_cputs:
+			sys_cputs((char *)a1, (size_t)a2);
+			break;
+		case SYS_cgetc:
+			return sys_cgetc();
+		case SYS_getenvid:
+			return sys_getenvid();
+		case SYS_env_destroy:
+			return sys_env_destroy((envid_t)a1);
+		case SYS_map_kernel_page:
+			return sys_map_kernel_page((void *)a1, (void *)a2);
+		case SYS_sbrk:
+			return sys_sbrk(a1);
+		case NSYSCALLS:
+			break;
+		default:
+			return -E_INVAL;
+	}
+	return 0;
 }
 
