@@ -221,11 +221,11 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	// boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
+	boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
 	// Enable PSE(5th bit in cr4, which is 16), then Load CR-4
-	uint32_t cr4 = rcr4();
-	lcr4(cr4 | 16);
-	boot_map_region_large(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
+	// uint32_t cr4 = rcr4();
+	// lcr4(cr4 | 16);
+	// boot_map_region_large(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_P | PTE_W);
 
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
@@ -283,6 +283,11 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	int i;
+	for (i=0; i<NCPU; i++) {
+		uint32_t kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+	}
 }
 
 void
@@ -1047,11 +1052,11 @@ check_kern_pgdir(void)
 
 
 
-
 	
 	// check IO mem (new in lab 4)
 	for (i = IOMEMBASE; i < -PGSIZE; i += PGSIZE)
 		assert(check_va2pa(pgdir, i) == i);
+
 
 	// check kernel stack
 	// (updated in lab 4 to check per-CPU kernel stacks)
@@ -1063,6 +1068,7 @@ check_kern_pgdir(void)
 		for (i = 0; i < KSTKGAP; i += PGSIZE)
 			assert(check_va2pa(pgdir, base + i) == ~0);
 	}
+
 
 	// check PDE permissions
 	for (i = 0; i < NPDENTRIES; i++) {
