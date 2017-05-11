@@ -340,7 +340,9 @@ page_init(void)
 		physaddr_t pa = page2pa(&pages[i]);
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = NULL;
-		if ((i == 0) || (pa >= IOPHYSMEM && pa < used)) {
+		if ((i == 0) || 
+			(pa == MPENTRY_PADDR) ||	
+			(pa >= IOPHYSMEM && pa < used)) {
 			pages[i].pp_ref = 1;
 		} else {
 			pages[i].pp_link = page_free_list;
@@ -925,6 +927,7 @@ check_page_free_list(bool only_low_memory)
 
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
+	cprintf("check_page_free_list() succeeded!\n");
 }
 
 //
