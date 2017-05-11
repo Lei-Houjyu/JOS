@@ -6,17 +6,21 @@
 static inline int32_t
 syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
-	int32_t ret;
-	asm volatile("pushl %%ecx\n\t"
-		 "pushl %%edx\n\t"
-	         "pushl %%ebx\n\t"
-		 "pushl %%esp\n\t"
-		 "pushl %%ebp\n\t"
-		 "pushl %%esi\n\t"
-		 "pushl %%edi\n\t"
-				 
-                 //Lab 3: Your code here
-
+    int32_t ret;
+    asm volatile(
+         "pushl %%ecx\n\t"
+         "pushl %%edx\n\t"
+         "pushl %%ebx\n\t"
+         "pushl %%esp\n\t"
+         "pushl %%ebp\n\t"
+         "pushl %%esi\n\t"
+         "pushl %%edi\n\t"
+                 
+                //Lab 3: Your code here
+                 "movl %%esp, %%ebp\n\t"
+                 "leal 1f, %%esi\n\t"
+                 "sysenter\n\t"
+                 "1:"
                  "popl %%edi\n\t"
                  "popl %%esi\n\t"
                  "popl %%ebp\n\t"
@@ -34,10 +38,10 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
                  : "cc", "memory");
 
 
-	if(check && ret > 0)
-		panic("syscall %d returned %d (> 0)", num, ret);
+    if(check && ret > 0)
+        panic("syscall %d returned %d (> 0)", num, ret);
 
-	return ret;
+    return ret;
 }
 
 void

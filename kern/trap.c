@@ -72,6 +72,48 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	extern void handler_0();
+	extern void handler_1();
+	extern void handler_2();
+	extern void handler_3();
+	extern void handler_4();
+	extern void handler_5();
+	extern void handler_6();
+	extern void handler_7();
+	extern void handler_8();
+	extern void handler_10();
+	extern void handler_11();
+	extern void handler_12();
+	extern void handler_13();
+	extern void handler_14();
+	extern void handler_16();
+	extern void handler_17();
+	extern void handler_18();
+	extern void handler_19();
+
+	SETGATE(idt[0], 0, GD_KT, handler_0, 0);
+	SETGATE(idt[1], 0, GD_KT, handler_1, 0);
+	SETGATE(idt[2], 0, GD_KT, handler_2, 0);
+	SETGATE(idt[3], 0, GD_KT, handler_3, 3);
+	SETGATE(idt[4], 0, GD_KT, handler_4, 3);
+	SETGATE(idt[5], 0, GD_KT, handler_5, 0);
+	SETGATE(idt[6], 0, GD_KT, handler_6, 0);
+	SETGATE(idt[7], 0, GD_KT, handler_7, 0);
+	SETGATE(idt[8], 0, GD_KT, handler_8, 0);
+	SETGATE(idt[10], 0, GD_KT, handler_10, 0);
+	SETGATE(idt[11], 0, GD_KT, handler_11, 0);
+	SETGATE(idt[12], 0, GD_KT, handler_12, 0);
+	SETGATE(idt[13], 0, GD_KT, handler_13, 0);
+	SETGATE(idt[14], 0, GD_KT, handler_14, 0);
+	SETGATE(idt[16], 0, GD_KT, handler_16, 0);
+	SETGATE(idt[17], 0, GD_KT, handler_17, 0);
+	SETGATE(idt[18], 0, GD_KT, handler_18, 0);
+	SETGATE(idt[19], 0, GD_KT, handler_19, 0);
+
+	extern void sysenter_handler();
+	wrmsr(0x174, GD_KT, 0);
+	wrmsr(0x175, KSTACKTOP,0);
+	wrmsr(0x176, (uint32_t)sysenter_handler, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -173,6 +215,10 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	if (tf->tf_trapno == T_PGFLT)
+		page_fault_handler(tf);
+	if (tf->tf_trapno == T_BRKPT || tf->tf_trapno == T_DEBUG)
+		monitor(tf);
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -264,6 +310,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if (!(tf->tf_cs & 0x3)) {
+		panic("page_fault_handler : page fault!\n");
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
