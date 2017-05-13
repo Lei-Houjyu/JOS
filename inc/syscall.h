@@ -21,6 +21,7 @@ enum {
 	SYS_ipc_recv,
 
 	SYS_sbrk,
+	SYS_env_set_priority,
 	NSYSCALLS
 };
 

@@ -25,10 +25,14 @@ struct Command {
 
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
+	{ "time", "Display a commond runtime, usage: time [command]", mon_time},
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display function backtrace", mon_backtrace},
+	{ "c", "Continue, use in debug", mon_debug_continue},
+	{ "si", "Step by step, use in debug", mon_debug_step},
+	{ "x", "Display memory, use in debug", mon_debug_display}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
-#define TFMASK 1 << 8
 
 unsigned read_eip();
 
@@ -41,6 +45,40 @@ mon_help(int argc, char **argv, struct Trapframe *tf)
 
 	for (i = 0; i < NCOMMANDS; i++)
 		cprintf("%s - %s\n", commands[i].name, commands[i].desc);
+	return 0;
+}
+
+int
+mon_time(int argc, char **argv, struct Trapframe *tf)
+{
+	uint32_t begin_low = 0;
+	uint32_t begin_high = 0;
+	uint32_t end_low = 0;
+	uint32_t end_high = 0;
+	int i;
+
+	if (argc == 1) {
+		cprintf("Please enter: time [command]\n");
+		return 0;
+	}
+	for (i = 0; i < NCOMMANDS; i++) {
+		if (strcmp(argv[1], commands[i].name) == 0)
+			break;
+		if (i == NCOMMANDS-1) {
+			cprintf("Unknown command after time '%s'\n", argv[1]);
+			return 0;
+		}
+	}
+	argc--;
+	argv++;
+
+	__asm __volatile("rdtsc" : "=a" (begin_low), "=d" (begin_high));
+	commands[i].func(argc, argv, tf);
+	__asm __volatile("rdtsc" : "=a" (end_low), "=d" (end_high));
+	
+	uint64_t begin_total = ((uint64_t)begin_high << 32) | begin_low; 
+	uint64_t end_total = ((uint64_t)end_high << 32) | end_low; 
+	cprintf("%s cycles: %llu\n", argv[0], end_total-begin_total);
 	return 0;
 }
 
@@ -59,31 +97,6 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-int
-mon_c(struct Trapframe *tf) {
-	tf->tf_eflags &= ~TFMASK;
-	env_pop_tf(tf);
-	return 0;
-}
-
-int
-mon_si(struct Trapframe *tf) {
-	struct Eipdebuginfo info;
-	debuginfo_eip(tf->tf_eip, &info);
-	cprintf("tf_eip=%x\n", tf->tf_eip);
-	cprintf("%s:%d: %s+%d\n", 
-	info.eip_file, info.eip_line, info.eip_fn_name, (int)info.eip_fn_addr);
-	tf->tf_eflags |= TFMASK;
-	env_pop_tf(tf);
-	return 0;
-}
-
-int
-mon_x(uint32_t addr) {
-	cprintf("%d\n", *(int *)addr);
-	return 0;
-}
-
 // Lab1 only
 // read the pointer to the retaddr on the stack
 static uint32_t
@@ -98,8 +111,6 @@ do_overflow(void)
 {
     cprintf("Overflow success\n");
 }
-
-#define get_byte(addr, off) ((addr >> (off * 8)) & 0xff)
 
 void
 start_overflow(void)
@@ -119,54 +130,126 @@ start_overflow(void)
     char *pret_addr;
 
 	// Your code here.
-	pret_addr = (char *) read_pretaddr();
-	uint32_t fret_addr = (uint32_t) do_overflow;
-
-
-	for (nstr = 0; nstr < get_byte(fret_addr, 0) + 3; nstr++) str[nstr] = '.';
-	str[nstr - 1] = '\0';
-	cprintf("%s%n", str, pret_addr);
-
-	for (nstr = 0; nstr < get_byte(fret_addr, 1); nstr++) str[nstr] = '.';
-	str[nstr - 1] = '\0';
-	cprintf("%s%n", str, pret_addr+1);	
+	// replace 'ret to overflow_me' to 'ret to do_overflow' 
+	pret_addr = (char*)read_pretaddr(); // get eip pointer
+	int i = 0;
+	for (;i < 256; i++) {
+		str[i] = 'h';
+		if (i%2)
+			str[i] = 'a';
+	}
+	void (*do_overflow_t)();
+	do_overflow_t = do_overflow;
+	uint32_t ret_addr = (uint32_t)do_overflow_t+3; // ignore stack asm code
+	
+	uint32_t ret_byte_0 = ret_addr & 0xff;
+	uint32_t ret_byte_1 = (ret_addr >> 8) & 0xff;
+	uint32_t ret_byte_2 = (ret_addr >> 16) & 0xff;
+	uint32_t ret_byte_3 = (ret_addr >> 24) & 0xff;
+	str[ret_byte_0] = '\0';
+	cprintf("%s%n\n", str, pret_addr);
+	str[ret_byte_0] = 'h';
+	str[ret_byte_1] = '\0';
+	cprintf("%s%n\n", str, pret_addr+1);
+	str[ret_byte_1] = 'h';
+	str[ret_byte_2] = '\0';
+	cprintf("%s%n\n", str, pret_addr+2);
+	str[ret_byte_2] = 'h';
+	str[ret_byte_3] = '\0';
+	cprintf("%s%n\n", str, pret_addr+3);
 }
 
 void
 overflow_me(void)
 {
-    start_overflow();
+        start_overflow();
 }
 
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	uint32_t ebp = read_ebp();
+	uint32_t eip = read_eip();
+
 	cprintf("Stack backtrace:\n");
-    int eip = read_eip();
-	int *ebp = (int *)read_ebp();
-	int args[5] = {*(ebp + 2), *(ebp + 3), 
-				   *(ebp + 4), *(ebp + 5), *(ebp + 6)};
-	struct Eipdebuginfo info;
-	debuginfo_eip((uintptr_t)eip, &info);
-	while (ebp) {
-		cprintf("eip %x ebp %x args %08x %08x %08x %08x %08x\n%s:%d: %s+%d\n", 
-				 eip, ebp, args[0], args[1], args[2], args[3], args[4], 
-				 info.eip_file, info.eip_line, info.eip_fn_name, (int)info.eip_fn_addr);
-		ebp = (int *)(*ebp);
-		eip = *(ebp + 1);
-		args[0] = *(ebp + 2);
-		args[1] = *(ebp + 3);
-		args[2] = *(ebp + 4);
-		args[3] = *(ebp + 5);
-		args[4] = *(ebp + 6);
-		debuginfo_eip((uintptr_t)eip, &info);
+	while(ebp != 0x0) {
+		eip = *((uint32_t*)ebp + 1);
+		cprintf("  eip %08x  ebp %08x  args %08x %08x %08x %08x %08x\n", eip, ebp, *((uint32_t*)ebp+2), *((uint32_t*)ebp+3), *((uint32_t*)ebp+4), *((uint32_t*)ebp+5), *((uint32_t*)ebp+6) );
+		
+		// debug info, zhe ge hai yao suan fen, WTF
+		struct Eipdebuginfo info;
+		if (debuginfo_eip(eip, &info) == 0) {
+			char temp[info.eip_fn_namelen+1];
+			temp[info.eip_fn_namelen] = '\0';
+			int i = 0;
+			for (i = 0; i < info.eip_fn_namelen; i++) {
+				temp[i] = info.eip_fn_name[i];
+			}
+			cprintf("         %s:%d: %s+%x\n", info.eip_file, info.eip_line, temp, eip-info.eip_fn_addr);
+		}
+		// debug info end
+
+		ebp = *((uint32_t*)ebp);
 	}
+	
+	
+    overflow_me();
     cprintf("Backtrace success\n");
-	overflow_me();
 	return 0;
 }
 
+
+/* use in debug(int3 interrupter) */
+int
+mon_debug_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	uint32_t eflags;
+	if (tf == NULL) {
+		cprintf("No trapped environment\n");
+		return 1;
+	}
+	eflags = tf->tf_eflags;
+	eflags &= ~FL_TF;
+	tf->tf_eflags = eflags;
+	env_run(curenv);
+	return 0;
+}
+
+
+int
+mon_debug_step(int argc, char **argv, struct Trapframe *tf)
+{
+	uint32_t eflags;
+	if (tf == NULL) {
+		cprintf("No trapped environment\n");
+		return 1;
+	}
+	eflags = tf->tf_eflags;
+	eflags |= FL_TF;
+	tf->tf_eflags = eflags;
+
+	cprintf("tf_eip=0x%x\n", tf->tf_eip);
+	env_run(curenv);
+	return 0;
+}
+
+
+int
+mon_debug_display(int argc, char **argv, struct Trapframe *tf)
+{
+	if (argc != 2) {
+		cprintf("please enter x addr");
+	}
+	uint32_t get_addr;
+	get_addr = strtol(argv[1], NULL, 16);
+	
+	uint32_t get_val;
+    __asm __volatile("movl (%0), %0" : "=r" (get_val) : "r" (get_addr)); 
+	
+	cprintf("%d\n", get_val);
+	return 0;
+}
 
 
 /***** Kernel monitor command interpreter *****/
@@ -208,14 +291,6 @@ runcmd(char *buf, struct Trapframe *tf)
 	for (i = 0; i < NCOMMANDS; i++) {
 		if (strcmp(argv[0], commands[i].name) == 0)
 			return commands[i].func(argc, argv, tf);
-	}
-	if (tf) {
-		if (strcmp(argv[0], "c") == 0)
-			return mon_c(tf);
-		if (strcmp(argv[0], "si") == 0)
-			return mon_si(tf);
-		if (strcmp(argv[0], "x") == 0) 
-			return mon_x(strtol(argv[1], 0, 16));
 	}
 	cprintf("Unknown command '%s'\n", argv[0]);
 	return 0;

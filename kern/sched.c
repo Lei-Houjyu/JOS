@@ -1,5 +1,4 @@
 #include <inc/assert.h>
-
 #include <kern/env.h>
 #include <kern/pmap.h>
 #include <kern/monitor.h>
@@ -10,7 +9,7 @@ void
 sched_yield(void)
 {
 	struct Env *idle;
-	int i;
+	int i,j;
 
 	// Implement simple round-robin scheduling.
 	//
@@ -30,6 +29,18 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 
+	i = (curenv) ? ENVX(curenv->env_id) : 0;
+	for (j = 1; j<NENV; j++) {
+		if (envs[(i+j) % NENV].env_status == ENV_RUNNABLE &&
+			envs[(i+j) % NENV].env_type != ENV_TYPE_IDLE) {
+			env_run(&envs[(i+j)%NENV]);
+			break;
+		}
+	}
+	if (curenv && curenv->env_status == ENV_RUNNING) {
+		env_run(curenv);
+	}
+	
 	// For debugging and testing purposes, if there are no
 	// runnable environments other than the idle environments,
 	// drop into the kernel monitor.

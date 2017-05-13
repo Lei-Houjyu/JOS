@@ -194,5 +194,6 @@ struct PagePair {
     struct Page *first;
     struct Page *second;
 };
+
 #endif /* !__ASSEMBLER__ */
 #endif /* !JOS_INC_MEMLAYOUT_H */

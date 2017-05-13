@@ -88,6 +88,4 @@ page2kva(struct Page *pp)
 
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 
-struct Page *alloc_page_with_color(int alloc_flags, int color);
-
 #endif /* !JOS_KERN_PMAP_H */
