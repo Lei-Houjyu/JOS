@@ -36,9 +36,15 @@ echo_n () {
 # non-empty, wait until $brkfn is reached or $timeout expires, then
 # kill QEMU.
 run () {
+
 	qemuextra=
 	if [ "$brkfn" ]; then
 		qemuextra="-S -gdb tcp::$gdbport"
+	fi
+
+	qemucommand="$qemu -nographic $qemuopts -serial file:jos.out -monitor null -no-reboot $qemuextra"
+	if $verbose; then
+		echo $qemucommand 1>&2
 	fi
 
 	qemucommand="$qemu -nographic $qemuopts -serial file:jos.out -monitor null -no-reboot $qemuextra"
@@ -143,7 +149,7 @@ fail () {
 # Usage: runtest <tagname> <defs> <check fn> <check args...>
 runtest () {
 	perl -e "print '$1: '"
-	rm -f obj/kern/init.o obj/kern/kernel obj/kern/kernel.img 
+	rm -f obj/kern/init.o obj/kern/kernel obj/kern/kernel.img
 	[ "$preservefs" = y ] || rm -f obj/fs/fs.img
 	if $verbose
 	then
@@ -153,7 +159,7 @@ runtest () {
 	if [ $? -ne 0 ]
 	then
 		rm -f obj/kern/init.o
-		echo $make $2 failed 
+		echo $make $2 failed
 		exit 1
 	fi
 	# We just built a weird init.o that runs a specific test.  As

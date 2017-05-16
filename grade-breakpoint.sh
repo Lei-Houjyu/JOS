@@ -2,8 +2,9 @@
 
 set timeout 10;			# set timeout to -1 to wait forever
 set hda "obj/kern/kernel.img"
+set qemu "/usr/local/bin/qemu-system-i386"
 
-spawn qemu -nographic -hda $hda -no-reboot
+spawn $qemu -nographic -hda $hda -no-reboot
 
 # interact
 expect {

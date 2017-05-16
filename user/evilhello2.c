@@ -5,6 +5,10 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 
+char vaddr[PGSIZE];
+struct Segdesc old;
+struct Segdesc *gdt;
+struct Segdesc *entry;
 
 // Call this function with ring0 privilege
 void evil()
@@ -25,6 +29,14 @@ void evil()
 	outb(0x3f8, '!');
 	outb(0x3f8, '!');
 	outb(0x3f8, '\n');
+}
+
+void call_fun_ptr()
+{
+    evil();  
+    *entry = old;  
+    asm volatile("popl %ebp");
+    asm volatile("lret");   
 }
 
 static void
@@ -49,6 +61,24 @@ void ring0_call(void (*fun_ptr)(void)) {
     //        file if necessary.
 
     // Lab3 : Your Code Here
+    struct Pseudodesc r_gdt; 
+    sgdt(&r_gdt);
+
+    int t = sys_map_kernel_page((void* )r_gdt.pd_base, (void* )vaddr);
+    if (t < 0) {
+        cprintf("ring0_call: sys_map_kernel_page failed, %e\n", t);
+    }
+
+    uint32_t base = (uint32_t)(PGNUM(vaddr) << PTXSHIFT);
+    uint32_t index = GD_UD >> 3;
+    uint32_t offset = PGOFF(r_gdt.pd_base);
+
+    gdt = (struct Segdesc*)(base+offset); 
+    entry = gdt + index; 
+    old= *entry; 
+
+    SETCALLGATE(*((struct Gatedesc*)entry), GD_KT, call_fun_ptr, 3);
+    asm volatile("lcall $0x20, $0");
 }
 
 void

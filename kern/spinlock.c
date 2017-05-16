@@ -8,7 +8,15 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 #include <kern/kdebug.h>
+#include <kern/env.h>
 
+
+void
+print() {
+	// int i;
+	// for (i=0; i<20; i++)
+	// 	cprintf("%d %d %d\n", i, envs[i].env_type, envs[i].env_status);
+}
 // The big kernel lock
 struct spinlock kernel_lock = {
 #ifdef DEBUG_SPINLOCK
@@ -18,10 +26,9 @@ struct spinlock kernel_lock = {
 
 // This is the atomic instruction that
 // reading the old value as well as doing the add operation.
-// If your gcc cannot support this function, please check your gcc version.
-// The original gcc of the virtual machine we provided is feasible.
+// If your gcc cannot support this function, report to TA.
 #ifdef USE_TICKET_SPIN_LOCK
-unsigned atomic_return_and_add(unsigned *addr, unsigned value)
+unsigned atomic_return_and_add(volatile unsigned *addr, unsigned value)
 {
 	return __sync_fetch_and_add(addr, value);
 }
@@ -55,8 +62,7 @@ holding(struct spinlock *lock)
 	return lock->locked && lock->cpu == thiscpu;
 #else
 	//LAB 4: Your code here
-	panic("ticket spinlock: not implemented yet");
-
+	return (lock->own != lock->next) && (lock->cpu == thiscpu);
 #endif
 }
 #endif
@@ -68,7 +74,8 @@ __spin_initlock(struct spinlock *lk, char *name)
 	lk->locked = 0;
 #else
 	//LAB 4: Your code here
-
+	lk->own = 0;
+	lk->next = 0;
 #endif
 
 #ifdef DEBUG_SPINLOCK
@@ -84,6 +91,7 @@ __spin_initlock(struct spinlock *lk, char *name)
 void
 spin_lock(struct spinlock *lk)
 {
+	print();
 #ifdef DEBUG_SPINLOCK
 	if (holding(lk))
 		panic("CPU %d cannot acquire %s: already holding", cpunum(), lk->name);
@@ -97,7 +105,12 @@ spin_lock(struct spinlock *lk)
 		asm volatile ("pause");
 #else
 	//LAB 4: Your code here
-
+	unsigned ticket_num = atomic_return_and_add(&lk->next, 1);
+	// cprintf("cpu %d is waiting the lock\n",cpunum());
+	while (lk->own != ticket_num) {
+		asm volatile ("pause");
+	}
+	// cprintf("cpu %d got the lock\n", cpunum());
 #endif
 
 	// Record info about lock acquisition for debugging.
@@ -111,6 +124,7 @@ spin_lock(struct spinlock *lk)
 void
 spin_unlock(struct spinlock *lk)
 {
+	print();
 #ifdef DEBUG_SPINLOCK
 	if (!holding(lk)) {
 		int i;
@@ -149,5 +163,6 @@ spin_unlock(struct spinlock *lk)
 	xchg(&lk->locked, 0);
 #else
 	//LAB 4: Your code here
+	atomic_return_and_add(&lk->own, 1);
 #endif
 }
