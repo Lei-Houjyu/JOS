@@ -69,7 +69,23 @@ open(const char *path, int mode)
 	// file descriptor.
 
 	// LAB 5: Your code here.
-	panic("open not implemented");
+	if (strlen(path) >= MAXPATHLEN) return -E_BAD_PATH;
+
+	int r;
+	struct Fd *fd_store;
+
+	if ((r = fd_alloc(&fd_store)) < 0)
+		return r;
+
+	memmove(fsipcbuf.open.req_path, path, MAXPATHLEN);
+	fsipcbuf.open.req_omode = mode;
+
+	if ((r = fsipc(FSREQ_OPEN, fd_store)) < 0) {
+		fd_close(fd_store, 1);
+		return r;
+	}
+
+	return fd2num(fd_store);
 }
 
 // Flush the file descriptor.  After this the fileid is invalid.
