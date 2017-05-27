@@ -23,6 +23,7 @@ enum {
 
 	SYS_sbrk,
 	SYS_env_set_priority,
+	SYS_exec,
 	NSYSCALLS
 };
 
