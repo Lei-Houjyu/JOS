@@ -412,40 +412,42 @@ sys_sbrk(uint32_t inc)
 }
 
 static int
-sys_exec(uint32_t eip, uint32_t esp, void * v_ph, uint32_t phnum)
+sys_exec(uint32_t eip, uint32_t esp, void * v_ph, uint32_t num)
 {
 
 	curenv->env_tf.tf_eip = eip;
 	curenv->env_tf.tf_esp = esp;
 
 	int perm, i;
-	uint32_t tmp = 0xe0000000;
+	uint32_t base = 0xe0000000;
 	uint32_t va, end;
 	struct Page *pg;
 
 	struct Proghdr * ph = (struct Proghdr *) v_ph; 
-	for (i = 0; i < phnum; i++, ph++) {
-		if (ph->p_type != ELF_PROG_LOAD)
-			continue;
-		perm = PTE_P | PTE_U;
-		if (ph->p_flags & ELF_PROG_FLAG_WRITE)
-			perm |= PTE_W;
+	for (i = 0; i < num; i++, ph++) 
+		if (ph->p_type == ELF_PROG_LOAD) {
+			perm = PTE_P | PTE_U;
 
-		end = ROUNDUP(ph->p_va + ph->p_memsz, PGSIZE);
-		for (va = ROUNDDOWN(ph->p_va, PGSIZE); va != end; tmp += PGSIZE, va += PGSIZE) {
-			if ((pg = page_lookup(curenv->env_pgdir, (void *)tmp, NULL)) == NULL) 
-				return -E_NO_MEM;
-			if (page_insert(curenv->env_pgdir, pg, (void *)va, perm) < 0)
-				return -E_NO_MEM;
-			page_remove(curenv->env_pgdir, (void *)tmp);
+			if (ph->p_flags & ELF_PROG_FLAG_WRITE) perm |= PTE_W;
+
+			end = ROUNDUP(ph->p_va + ph->p_memsz, PGSIZE);
+
+			for (va = ROUNDDOWN(ph->p_va, PGSIZE); va != end; base += PGSIZE, va += PGSIZE) {
+				if ((pg = page_lookup(curenv->env_pgdir, (void *)base, NULL)) == NULL) 
+					return -E_NO_MEM;
+				if (page_insert(curenv->env_pgdir, pg, (void *)va, perm) < 0)
+					return -E_NO_MEM;
+				page_remove(curenv->env_pgdir, (void *)base);
+			}
 		}
-	}
 
-	if ((pg = page_lookup(curenv->env_pgdir, (void *)tmp, NULL)) == NULL) 
+	if ((pg = page_lookup(curenv->env_pgdir, (void *)base, NULL)) == NULL) 
 		return -E_NO_MEM;
+	
 	if (page_insert(curenv->env_pgdir, pg, (void *)(USTACKTOP - PGSIZE), PTE_P|PTE_U|PTE_W) < 0) 
 		return -E_NO_MEM;
-	page_remove(curenv->env_pgdir, (void *)tmp);
+
+	page_remove(curenv->env_pgdir, (void *)base);
 	
 	env_run(curenv);
 	
