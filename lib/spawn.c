@@ -213,8 +213,6 @@ exec(const char *prog, const char **argv)
 	close(fd);
 	fd = -1;
 
-	cprintf("tf_esp: %x\n", tf_esp);
-	// cprintf("tf_eip: %x\n", tf_eip);
 	if ((r = init_stack(0, argv, &tf_esp, tmp)) < 0)
 		return r;
 

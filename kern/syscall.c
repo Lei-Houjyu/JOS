@@ -447,7 +447,8 @@ sys_exec(uint32_t eip, uint32_t esp, void * v_ph, uint32_t phnum)
 		return -E_NO_MEM;
 	page_remove(curenv->env_pgdir, (void *)tmp);
 	
-	env_run(curenv);// never return
+	env_run(curenv);
+	
 	return 0;
 }
 
