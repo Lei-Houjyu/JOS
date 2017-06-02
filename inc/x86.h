@@ -293,4 +293,9 @@ xchg(volatile uint32_t *addr, uint32_t newval)
 	return result;
 }
 
+static __inline void
+wrmsr(uint32_t msr, uint32_t eax, uint32_t edx)
+{
+	__asm __volatile("wrmsr" : : "c" (msr), "a" (eax), "d" (edx));
+}
 #endif /* !JOS_INC_X86_H */

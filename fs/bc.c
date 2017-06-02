@@ -1,4 +1,3 @@
-
 #include "fs.h"
 
 // Return the virtual address of this disk block.
@@ -49,7 +48,11 @@ bc_pgfault(struct UTrapframe *utf)
 	// the page dirty).
 	//
 	// LAB 5: Your code here
-	panic("bc_pgfault not implemented");
+	addr = ROUNDDOWN(addr, PGSIZE);
+	r = sys_page_alloc(0, addr, PTE_U | PTE_W | PTE_P);
+	if (r < 0) panic("bc_pgfault fail %e", r);
+	r = ide_read(blockno * BLKSECTS, addr, BLKSECTS);
+	if (r < 0) panic("bc_pgfault fail %e", r);
 
 	// Check that the block we read was allocated. (exercise for
 	// the reader: why do we do this *after* reading the block
@@ -74,7 +77,14 @@ flush_block(void *addr)
 		panic("flush_block of bad va %08x", addr);
 
 	// LAB 5: Your code here.
-	panic("flush_block not implemented");
+	int r;
+	addr = ROUNDDOWN(addr, PGSIZE);
+	if (!va_is_mapped(addr)) return;
+	if (!va_is_dirty(addr))  return;
+	r = ide_write(blockno * BLKSECTS, addr, BLKSECTS);
+	if (r < 0) panic("flush_block fail %e", r);
+	r = sys_page_map(0, addr, 0, addr, PTE_SYSCALL);
+	if (r < 0) panic("flush_block fail %e", r);
 }
 
 // Test that the block cache works, by smashing the superblock and

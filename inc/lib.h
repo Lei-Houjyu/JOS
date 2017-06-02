@@ -63,17 +63,44 @@ int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
+int	sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
 sys_exofork(void)
 {
+	/*
 	envid_t ret;
 	__asm __volatile("int %2"
 		: "=a" (ret)
 		: "a" (SYS_exofork),
 		  "i" (T_SYSCALL)
 	);
+	return ret;
+	*/
+	envid_t ret;
+	//cprintf("in lib sys_exofork");
+	// Modify at Lab4 Exercise6
+	asm volatile("push $0x0\n\t"
+		"push $0x0\n\t"
+		"push $0x0\n\t"
+		"push $0x0\n\t"
+		"push $0x0\n\t"
+		"movl %%esp, %%edx\n\t"
+		"movl %%ebp, %%ebx\n\t"
+		"movl %%esp, %%ebp\n\t"		
+		"leal after_sysenter_label%=, %%esi\n\t"
+		"sysenter\n\t"
+		"after_sysenter_label%=:\n\t"
+                "movl %%ebx, %%ebp\n\t"
+		"add $0x14,%%esp\n\t"
+		: "=a" (ret)
+		: "a" (SYS_exofork)
+		: "cc", "memory");
+
+	if(ret == -E_NO_FREE_ENV || ret == -E_NO_MEM)
+		panic("syscall %d returned %d (> 0)", SYS_exofork, ret);
+	
 	return ret;
 }
 
@@ -85,9 +112,6 @@ envid_t	ipc_find_env(enum EnvType type);
 // fork.c
 #define	PTE_SHARE	0x400
 envid_t	fork(void);
-envid_t	sfork(void);	// Challenge!
-
-int     sys_map_kernel_page(void* kpage, void* va);
 
 int sys_sbrk(uint32_t inc);
 
@@ -133,8 +157,10 @@ int     nsipc_socket(int domain, int type, int protocol);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+int exec(const char *program, const char **argv);
+int execl(const char *program, const char *arg0, ...);
 
-
+envid_t	sfork(void);	// Challenge!
 
 /* File open modes */
 #define	O_RDONLY	0x0000		/* open for reading only */

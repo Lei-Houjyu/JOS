@@ -3,7 +3,7 @@
 #include <inc/syscall.h>
 #include <inc/lib.h>
 
-static inline int32_t
+static int32_t
 syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
 	int32_t ret;
@@ -16,7 +16,11 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		 "pushl %%edi\n\t"
 				 
                  //Lab 3: Your code here
-
+		 "movl %%esp,%%ebp\n\t"
+                 "leal .after_sysenter_label, %%esi\n\t"
+                 "sysenter\n\t"
+                 ".after_sysenter_label:\n\t"
+	
                  "popl %%edi\n\t"
                  "popl %%esi\n\t"
                  "popl %%ebp\n\t"
@@ -85,7 +89,13 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 int
 sys_page_map(envid_t srcenv, void *srcva, envid_t dstenv, void *dstva, int perm)
 {
-	return syscall(SYS_page_map, 1, srcenv, (uint32_t) srcva, dstenv, (uint32_t) dstva, perm);
+	uint32_t arglist[5];
+	arglist[0] = (uint32_t) srcenv;
+	arglist[1] = (uint32_t) srcva;
+	arglist[2] = (uint32_t) dstenv;
+	arglist[3] = (uint32_t) dstva;
+	arglist[4] = (uint32_t) perm;
+	return syscall(SYS_page_map, 1, (uint32_t)arglist, 0, 0, 0, 0);
 }
 
 int
@@ -95,7 +105,10 @@ sys_page_unmap(envid_t envid, void *va)
 }
 
 // sys_exofork is inlined in lib.h
-
+/*envid_t
+sys_exofork(void){
+	return syscall(SYS_exofork,0,0,0,0,0,0);
+}*/
 int
 sys_env_set_status(envid_t envid, int status)
 {
@@ -122,7 +135,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, int perm)
 
 int
 sys_ipc_recv(void *dstva)
-{
+{	
+	//cprintf("in lib sys_ipc_recv!\n");
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
@@ -138,3 +152,14 @@ sys_time_msec(void)
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
 
+int
+sys_env_set_priority(envid_t envid, int priority)
+{
+	return syscall(SYS_env_set_priority, 1, envid, priority, 0, 0, 0);
+}
+
+int 
+sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum) 
+{
+    return syscall(SYS_exec, 0, eip, esp, (uint32_t)ph, phnum, 0);
+}

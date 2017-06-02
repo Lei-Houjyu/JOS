@@ -148,11 +148,16 @@ PORT80	:= $(shell expr $(GDBPORT) + 2)
 QEMUOPTS = -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio -gdb tcp::$(GDBPORT)
 QEMUOPTS += $(shell if $(QEMU) -nographic -help | grep -q '^-D '; then echo '-D qemu.log'; fi)
 
+# <<<<<<< HEAD
 CPUS ?= 1
 
 QEMUOPTS = -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio -gdb tcp::$(GDBPORT)
 QEMUOPTS += $(shell if $(QEMU) -nographic -help | grep -q '^-D '; then echo '-D qemu.log'; fi)
 
+# =======
+# QEMUOPTS = -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio -s -p $(GDBPORT)
+# QEMUOPTS = -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio -gdb tcp::$(GDBPORT) -D qemu.log
+# >>>>>>> lab3
 IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -hdb $(OBJDIR)/fs/fs.img
@@ -240,6 +245,12 @@ tarball:
 		test "$$r" = y; \
 	fi
 	git archive --format=tar HEAD | gzip > lab$(LAB)-handin.tar.gz
+# =======
+# 	@echo Please upload lab$(LAB)-handin.tar.gz to dmkaplony@public.sjtu.edu.cn. Thanks!
+
+# tarball: realclean
+# 	tar cf - `find . -type f | grep -v '^\.*$$' | grep -v '/CVS/' | grep -v '/\.svn/' | grep -v '/\.git/' | grep -v 'lab[0-9].*\.tar\.gz'` | gzip > lab$(LAB)-handin.tar.gz
+# >>>>>>> lab3
 
 prep-net_%: override INIT_CFLAGS+=-DTEST_NO_NS
 
