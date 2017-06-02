@@ -65,6 +65,7 @@ void	tlb_invalidate(pde_t *pgdir, void *va);
 
 int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
 void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
+void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm);
 
 static inline physaddr_t
 page2pa(struct Page *pp)

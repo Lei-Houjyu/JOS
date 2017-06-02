@@ -15,7 +15,6 @@ static uint32_t pci_conf1_data_ioport = 0x0cfc;
 
 // Forward declarations
 static int pci_bridge_attach(struct pci_func *pcif);
-static int attach_function(struct pci_func *pcif);
 
 // PCI driver table
 struct pci_driver {
@@ -184,13 +183,6 @@ pci_bridge_attach(struct pci_func *pcif)
 			(busreg >> PCI_BRIDGE_BUS_SUBORDINATE_SHIFT) & 0xff);
 
 	pci_scan_bus(&nbus);
-	return 1;
-}
-
-static int
-attach_function(struct pci_func *pcif)
-{
-	pci_func_enable(pcif);
 	return 1;
 }
 
