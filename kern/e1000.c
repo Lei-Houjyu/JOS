@@ -15,7 +15,7 @@ int attach_function(struct pci_func *pcif) {
     int i;
     for (i = 0; i < MAX_TX_DESC_N; i++) {
         tx_desc_array[i].addr = PADDR(tx_pkt_buffer[i].content);
-        tx_desc_array[i].status |= 1;
+        tx_desc_array[i].status |= E1000_TXD_STAT_DD;
     }
 
     E1000[E1000_TDBAL] = PADDR(tx_desc_array);
@@ -32,11 +32,19 @@ int attach_function(struct pci_func *pcif) {
     E1000[E1000_TIPG] |= E1000_TIPG_IPGR1;
     E1000[E1000_TIPG] |= E1000_TIPG_IPGR2;
 
-
-
-
-
-
-
     return 1;
+}
+
+int transmit(uint8_t *data, int len) {
+    if (len <= 0 || len > MAX_TX_PKT_LEN)
+        return -1;
+    int tail = E1000[E1000_TDT];
+    if (!(tx_desc_array[tail].status & E1000_TXD_STAT_DD))
+        return -1;
+    memmove(tx_pkt_buffer[tail].content, data, len);
+    tx_desc_array[tail].cmd |= E1000_TXD_CMD_RS;
+    
+    E1000[E1000_TDT] = (tail + 1) % MAX_TX_DESC_N;
+
+    return 0;
 }

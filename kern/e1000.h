@@ -4,7 +4,7 @@
 #define JOS_KERN_E1000_H
 
 /* Constants */
-#define MAX_PACKET_LEN 1518
+#define MAX_TX_PKT_LEN 1518
 #define MAX_TX_DESC_N  64
 
 /* Registers */
@@ -29,6 +29,9 @@
 #define E1000_TIPG_IPGT  ( 0xA )          // Transmit Time
 #define E1000_TIPG_IPGR1 ( 0x4 << 10 ) // IPG Receive Time 1
 #define E1000_TIPG_IPGR2 ( 0x6 << 20 ) // IPG Receive Time 2
+#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
+#define E1000_TXD_CMD_RS     0x00000008 /* Report Status */
+
 
 volatile uint32_t *E1000;
 
@@ -44,7 +47,7 @@ struct tx_desc {
 } __attribute__((packed));
 
 struct tx_pkt {
-    uint8_t content[MAX_PACKET_LEN];
+    uint8_t content[MAX_TX_PKT_LEN];
 };
 
 struct tx_desc tx_desc_array[MAX_TX_DESC_N] __attribute__((aligned(16)));
@@ -52,5 +55,6 @@ struct tx_pkt tx_pkt_buffer[MAX_TX_DESC_N] __attribute__((aligned(16)));
 
 /* Functions */
 int attach_function(struct pci_func *pcif);
+int transmit(uint8_t *data, int len);
 
 #endif	// JOS_KERN_E1000_H

@@ -1,5 +1,4 @@
 /* See COPYRIGHT for copyright information. */
-
 #include <inc/x86.h>
 #include <inc/error.h>
 #include <inc/string.h>
@@ -14,6 +13,7 @@
 #include <kern/sched.h>
 #include <kern/time.h>
 #include <kern/spinlock.h>
+#include <kern/e1000.h>
 
 extern void region_alloc(struct Env *e, void *va, size_t len);
 
@@ -463,6 +463,11 @@ sys_time_msec(void)
 	return time_msec();
 }
 
+static int
+sys_transmit(uint8_t *data, int len) {
+	return transmit(data, len);
+}
+
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -511,6 +516,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_exec((uint32_t)a1, (uint32_t)a2, (void *)a3, (uint32_t)a4);
 		case SYS_time_msec:
 			return sys_time_msec();
+		case SYS_transmit:
+			return sys_transmit((uint8_t *)a1, (int)a2);
 		default:
 			return -E_INVAL;
 	}
