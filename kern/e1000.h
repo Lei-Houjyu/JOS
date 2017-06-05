@@ -31,6 +31,8 @@
 #define E1000_TIPG_IPGR2 ( 0x6 << 20 ) // IPG Receive Time 2
 #define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
 #define E1000_TXD_CMD_RS     0x00000008 /* Report Status */
+#define E1000_TXD_CMD_EOP    0x00000001 /* End of Packet */
+
 
 
 volatile uint32_t *E1000;

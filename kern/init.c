@@ -116,6 +116,12 @@ i386_init(void)
 	// ENV_CREATE(user_testfile, ENV_TYPE_USER);
 	// ENV_CREATE(user_icode, ENV_TYPE_USER);
 #endif // TEST*
+	uint8_t s = 1;
+	transmit(&s, 1);
+	s = 2;
+	transmit(&s, 1);
+	s = 3;
+	transmit(&s, 1);
 	// Schedule and run the first user environment!
 	sched_yield();
 }

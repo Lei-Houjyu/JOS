@@ -42,8 +42,12 @@ int transmit(uint8_t *data, int len) {
     if (!(tx_desc_array[tail].status & E1000_TXD_STAT_DD))
         return -1;
     memmove(tx_pkt_buffer[tail].content, data, len);
+    tx_desc_array[tail].length = len;
+    tx_desc_array[tail].status &= ~E1000_TXD_STAT_DD;
     tx_desc_array[tail].cmd |= E1000_TXD_CMD_RS;
-    
+    tx_desc_array[tail].cmd |= E1000_TXD_CMD_EOP;
+
+
     E1000[E1000_TDT] = (tail + 1) % MAX_TX_DESC_N;
 
     return 0;
