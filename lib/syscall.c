@@ -167,5 +167,6 @@ sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum)
 int
 sys_transmit(uint8_t *data, int len)
 {
-    return syscall(SYS_transmit, (uint32_t)data, (uint32_t)len, 0, 0, 0, 0);
+    cprintf("lib/syscall.c %x %x\n", data, (uint32_t)data);
+    return syscall(SYS_transmit, 0, (uint32_t)data, (uint32_t)len, 0, 0, 0);
 }

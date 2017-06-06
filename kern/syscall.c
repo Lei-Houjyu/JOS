@@ -465,6 +465,7 @@ sys_time_msec(void)
 
 static int
 sys_transmit(uint8_t *data, int len) {
+	cprintf("kern/syscall.c %x\n", data);
 	return transmit(data, len);
 }
 
@@ -516,8 +517,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_exec((uint32_t)a1, (uint32_t)a2, (void *)a3, (uint32_t)a4);
 		case SYS_time_msec:
 			return sys_time_msec();
-		case SYS_transmit:
+		case SYS_transmit: {
+			cprintf("kern/syscall.c %x\n", a1);
 			return sys_transmit((uint8_t *)a1, (int)a2);
+		}
 		default:
 			return -E_INVAL;
 	}
