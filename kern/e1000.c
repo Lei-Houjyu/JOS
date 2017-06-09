@@ -78,24 +78,24 @@ int transmit(uint8_t *data, int len) {
 }
 
 int receive(uint8_t *data) {
-    uint32_t rdt = (E1000[E1000_RDT] + 1) % MAX_RV_DESC_N;
-    if ((rv_desc_array[rdt].status & E1000_RXD_STAT_DD) == 0)
-        return -1;
-    if ((rv_desc_array[rdt].status & E1000_RXD_STAT_EOP) == 0)
-        panic("e1000_receive: exception");
-    uint32_t len = rv_desc_array[rdt].length;
-    memmove(data, rv_pkt_buffer[rdt].content, len);
-    rv_desc_array[rdt].status &= ~E1000_RXD_STAT_DD;
-    rv_desc_array[rdt].status &= ~E1000_RXD_STAT_EOP;
-    E1000[E1000_RDT] = rdt;
-    return len;
-    // uint32_t tail = (E1000[E1000_RDT] + 1) % MAX_RV_DESC_N;
-    // if (!(rv_desc_array[tail].status & E1000_RXD_STAT_DD))
+    // uint32_t rdt = (E1000[E1000_RDT] + 1) % MAX_RV_DESC_N;
+    // if ((rv_desc_array[rdt].status & E1000_RXD_STAT_DD) == 0)
     //     return -1;
-    // uint32_t len = rv_desc_array[tail].length;
-    // memmove(data, rv_pkt_buffer[tail].content, len);
-    // rv_desc_array[tail].status &= ~E1000_RXD_STAT_DD;
-    // rv_desc_array[tail].status &= ~E1000_RXD_STAT_EOP;
-    // E1000[E1000_RDT] = tail;
+    // if ((rv_desc_array[rdt].status & E1000_RXD_STAT_EOP) == 0)
+    //     panic("e1000_receive: exception");
+    // uint32_t len = rv_desc_array[rdt].length;
+    // memmove(data, rv_pkt_buffer[rdt].content, len);
+    // rv_desc_array[rdt].status &= ~E1000_RXD_STAT_DD;
+    // rv_desc_array[rdt].status &= ~E1000_RXD_STAT_EOP;
+    // E1000[E1000_RDT] = rdt;
     // return len;
+    uint32_t tail = (E1000[E1000_RDT] + 1) % MAX_RV_DESC_N;
+    if (!(rv_desc_array[tail].status & E1000_RXD_STAT_DD))
+        return -1;
+    uint32_t len = rv_desc_array[tail].length;
+    memmove(data, rv_pkt_buffer[tail].content, len);
+    rv_desc_array[tail].status &= ~E1000_RXD_STAT_DD;
+    rv_desc_array[tail].status &= ~E1000_RXD_STAT_EOP;
+    E1000[E1000_RDT] = tail;
+    return len;
 }
