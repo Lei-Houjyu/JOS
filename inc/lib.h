@@ -65,6 +65,7 @@ int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 int	sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum);
 int sys_transmit(uint8_t *data, int len);
+int sys_receive(uint8_t *data, uint32_t *len);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))

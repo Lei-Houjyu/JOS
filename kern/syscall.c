@@ -468,6 +468,16 @@ sys_transmit(uint8_t *data, int len) {
 	return transmit(data, len);
 }
 
+static int
+sys_receive(uint8_t *data, uint32_t *len) {
+	int r = receive(data);
+	if (r > 0) {
+		*len = r;
+		r = 0;
+	}
+	return r;
+}
+
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -518,6 +528,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_time_msec();
 		case SYS_transmit:
 			return sys_transmit((uint8_t *)a1, (int)a2);
+		case SYS_receive:
+			return sys_receive((uint8_t *)a1, (uint32_t *)a2);
 		default:
 			return -E_INVAL;
 	}

@@ -1,4 +1,5 @@
 #include "ns.h"
+#include <inc/lib.h>
 
 extern union Nsipc nsipcbuf;
 
@@ -13,4 +14,22 @@ input(envid_t ns_envid)
 	// Hint: When you IPC a page to the network server, it will be
 	// reading from it for a while, so don't immediately receive
 	// another packet in to the same physical page.
+    uint8_t buf[2048];
+    uint32_t len;
+
+    cprintf("[input.c] enter input\n");
+    while (1)
+    {
+        cprintf("[input.c] receiving..\n");
+        while (sys_receive(buf, &len) < 0)
+            sys_yield();
+        cprintf("[input.c] %d\n", buf);
+
+        while (sys_page_alloc(0, &nsipcbuf, PTE_P|PTE_W|PTE_U) < 0);
+
+        nsipcbuf.pkt.jp_len = len;
+        memmove(nsipcbuf.pkt.jp_data, buf, len);
+
+        while(sys_ipc_try_send(ns_envid, NSREQ_INPUT, &nsipcbuf, PTE_P|PTE_W|PTE_U) < 0);
+    }
 }

@@ -26,6 +26,7 @@ enum {
 	SYS_env_set_priority,
 	SYS_exec,
 	SYS_transmit,
+	SYS_receive,
 	NSYSCALLS
 };
 

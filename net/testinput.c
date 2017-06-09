@@ -96,6 +96,7 @@ umain(int argc, char **argv)
 		int perm;
 
 		int32_t req = ipc_recv((int32_t *)&whom, pkt, &perm);
+
 		if (req < 0)
 			panic("ipc_recv: %e", req);
 		if (whom != input_envid)

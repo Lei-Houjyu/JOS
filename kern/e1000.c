@@ -46,7 +46,7 @@ int attach_function(struct pci_func *pcif) {
     E1000[E1000_RDLEN] = sizeof(struct rv_desc) * MAX_RV_DESC_N;
     E1000[E1000_RDH]   = 1;
     E1000[E1000_RDT]   = 0;
-
+    
     E1000[E1000_RCTL] = E1000_RCTL_EN;
     E1000[E1000_RCTL] &= ~E1000_RCTL_LPE;
     E1000[E1000_RCTL] &= ~E1000_RCTL_LBM;
@@ -75,4 +75,27 @@ int transmit(uint8_t *data, int len) {
     E1000[E1000_TDT] = (tail + 1) % MAX_TX_DESC_N;
 
     return 0;
+}
+
+int receive(uint8_t *data) {
+    uint32_t rdt = (E1000[E1000_RDT] + 1) % MAX_RV_DESC_N;
+    if ((rv_desc_array[rdt].status & E1000_RXD_STAT_DD) == 0)
+        return -1;
+    if ((rv_desc_array[rdt].status & E1000_RXD_STAT_EOP) == 0)
+        panic("e1000_receive: exception");
+    uint32_t len = rv_desc_array[rdt].length;
+    memmove(data, rv_pkt_buffer[rdt].content, len);
+    rv_desc_array[rdt].status &= ~E1000_RXD_STAT_DD;
+    rv_desc_array[rdt].status &= ~E1000_RXD_STAT_EOP;
+    E1000[E1000_RDT] = rdt;
+    return len;
+    // uint32_t tail = (E1000[E1000_RDT] + 1) % MAX_RV_DESC_N;
+    // if (!(rv_desc_array[tail].status & E1000_RXD_STAT_DD))
+    //     return -1;
+    // uint32_t len = rv_desc_array[tail].length;
+    // memmove(data, rv_pkt_buffer[tail].content, len);
+    // rv_desc_array[tail].status &= ~E1000_RXD_STAT_DD;
+    // rv_desc_array[tail].status &= ~E1000_RXD_STAT_EOP;
+    // E1000[E1000_RDT] = tail;
+    // return len;
 }

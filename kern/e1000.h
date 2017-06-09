@@ -51,6 +51,8 @@
 #define E1000_RCTL_BAM (0x1 << 15) // Broadcast Accept Mode
 #define E1000_RCTL_BSIZE (0x3 << 16) // Buffer Size
 #define E1000_RCTL_SECRC (0x1 << 26) // Strip Etherne
+#define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
+#define E1000_RXD_STAT_EOP      0x02    /* End of Packet */
 
 
 
@@ -95,5 +97,6 @@ struct rv_pkt rv_pkt_buffer[MAX_RV_DESC_N] __attribute__((aligned(16)));
 /* Functions */
 int attach_function(struct pci_func *pcif);
 int transmit(uint8_t *data, int len);
+int receive(uint8_t *data);
 
 #endif	// JOS_KERN_E1000_H
