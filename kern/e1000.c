@@ -32,6 +32,30 @@ int attach_function(struct pci_func *pcif) {
     E1000[E1000_TIPG] |= E1000_TIPG_IPGR1;
     E1000[E1000_TIPG] |= E1000_TIPG_IPGR2;
 
+    memset(rv_desc_array, 0, sizeof(struct rv_desc) * MAX_RV_DESC_N);
+    memset(rv_pkt_buffer, 0, sizeof(struct rv_pkt)  * MAX_RV_DESC_N);
+    for (i = 0; i < MAX_RV_DESC_N; i++)
+        rv_desc_array[i].addr = PADDR(rv_pkt_buffer[i].content);
+
+    E1000[E1000_RAL] = 0x12005452;
+    E1000[E1000_RAH] = 0x00005634;
+    E1000[E1000_RAH] |= E1000_RAH_AV;
+
+    E1000[E1000_RDBAL] = PADDR(rv_desc_array);
+    E1000[E1000_RDBAH] = 0;
+    E1000[E1000_RDLEN] = sizeof(struct rv_desc) * MAX_RV_DESC_N;
+    E1000[E1000_RDH]   = 1;
+    E1000[E1000_RDT]   = 0;
+
+    E1000[E1000_RCTL] = E1000_RCTL_EN;
+    E1000[E1000_RCTL] &= ~E1000_RCTL_LPE;
+    E1000[E1000_RCTL] &= ~E1000_RCTL_LBM;
+    E1000[E1000_RCTL] &= ~E1000_RCTL_RDMTS;
+    E1000[E1000_RCTL] &= ~E1000_RCTL_MO;
+    E1000[E1000_RCTL] |= E1000_RCTL_BAM;
+    E1000[E1000_RCTL] &= ~E1000_RCTL_BSIZE;
+    E1000[E1000_RCTL] |= E1000_RCTL_SECRC;
+
     return 1;
 }
 
