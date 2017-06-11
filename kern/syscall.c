@@ -478,6 +478,11 @@ sys_receive(uint8_t *data, uint32_t *len) {
 	return r;
 }
 
+static void
+sys_getmac() {
+	getmac();
+}
+
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -530,6 +535,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_transmit((uint8_t *)a1, (int)a2);
 		case SYS_receive:
 			return sys_receive((uint8_t *)a1, (uint32_t *)a2);
+		case SYS_getmac:
+			sys_getmac();
+			return 0;
 		default:
 			return -E_INVAL;
 	}
@@ -547,4 +555,3 @@ callsyscall(struct Trapframe *tf){
 								tf->tf_regs.reg_edi,0);
 	env_run(curenv);
 }
-

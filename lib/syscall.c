@@ -175,3 +175,9 @@ sys_receive(uint8_t *data, uint32_t *len)
 {   
     return syscall(SYS_receive, 1, (uint32_t)data, (uint32_t)len, 0, 0, 0);
 }
+
+void
+sys_getmac()
+{
+   syscall(SYS_getmac, 0, 0, 0, 0, 0, 0); 
+}

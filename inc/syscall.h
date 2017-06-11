@@ -27,6 +27,7 @@ enum {
 	SYS_exec,
 	SYS_transmit,
 	SYS_receive,
+	SYS_getmac,
 	NSYSCALLS
 };
 

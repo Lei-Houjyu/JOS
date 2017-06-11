@@ -53,6 +53,10 @@
 #define E1000_RCTL_SECRC (0x1 << 26) // Strip Etherne
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
 #define E1000_RXD_STAT_EOP      0x02    /* End of Packet */
+#define E1000_EERD     ( 0x00014 / 4 )  /* EEPROM Read - RW */
+#define E1000_EEPROM_RW_ADDR_SHIFT 8    /* Shift to the address bits */
+#define E1000_EEPROM_RW_REG_START  1    /* First bit for telling part to start operation */
+#define E1000_EEPROM_RW_REG_DONE   0x10 /* Offset to READ/WRITE done bit */
 
 
 
@@ -98,5 +102,6 @@ struct rv_pkt rv_pkt_buffer[MAX_RV_DESC_N] __attribute__((aligned(16)));
 int attach_function(struct pci_func *pcif);
 int transmit(uint8_t *data, int len);
 int receive(uint8_t *data);
+void getmac();
 
 #endif	// JOS_KERN_E1000_H
