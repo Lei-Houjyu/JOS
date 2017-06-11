@@ -1,4 +1,0 @@
-1.How long approximately did it take you to do this lab?
-	About a day.
-2.We redesigned the file system this year with the goal of making it more comprehensible in a week-long lab. Do you feel like you gained an understanding of how to build a file system? Feel free to suggest things we could improve.
-	Actually I may have an understanding about a file system, but it is not from this lab. This lab is too simple (not include the challenges) and can be done within few hours, so I think if you want to redesign this lab to a week-long lab, some more functions can be removed.

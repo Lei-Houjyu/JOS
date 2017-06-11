@@ -1,0 +1,20 @@
+1.How did you structure your transmit implementation? In particular, what do you do if the transmit ring is full?
+
+	As the document says, I use data structures like transmit descriptor array and packet buffer. If the transmit ring gets full, I will simply return -1 as a signal of error and let the upper layer deal with it.
+ 
+2.How did you structure your receive implementation? In particular, what do you do if the receive queue is empty and a user environment requests the next incoming packet?
+
+	Almost the same way as I choose in question one.
+
+3.What does the web page served by JOS's web server say?
+
+	It says “This file came from JOS.” and “Cheesy web page!”.
+
+
+4.How long approximately did it take you to do this lab?
+
+	Maybe three days, most of my time is spent on the manul reading.
+
+Challenge
+
+	I choose the first challenge, as the manual says, I read the real MAC address from  EEPROM.
